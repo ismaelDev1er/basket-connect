@@ -62,6 +62,7 @@ label{display:grid;gap:6px;font-size:.85rem;color:var(--mu)}
  <main id="v" class="view" tabindex="-1"></main>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>window.supabase||document.write('<script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>')</script>
 <script>
 (function(){
 "use strict";
@@ -92,7 +93,7 @@ $("#nv").onclick=function(e){var b=e.target.closest("button");if(!b)return;if(b.
 function setView(v){S.view=v;main.classList.remove("view");void main.offsetWidth;main.classList.add("view");nav();draw()}
 function draw(){
  nav();
- if(!configured){main.innerHTML='<div class="panel" style="margin-top:24px"><b>Configuration requise.</b><p style="color:var(--mu)">Renseignez SUPABASE_URL et SUPABASE_ANON_KEY dans index.html (voir les instructions).</p></div>';return}
+ if(!configured){var why=SUPABASE_URL.indexOf("REMPLACEZ")>-1?"Ce fichier n’est pas la version configurée : l’adresse du projet est absente. Retéléchargez le dernier index.html.":"La bibliothèque Supabase n’a pas pu se charger. Vérifiez votre connexion Internet et désactivez temporairement tout bloqueur (antivirus, bloqueur de publicités, réseau d’entreprise ou d’école).";main.innerHTML='<div class="panel" style="margin-top:24px"><b>Le site ne peut pas démarrer.</b><p style="color:var(--mu)">'+why+'</p></div>';return}
  var v=S.view;
  if(v!=="home"&&!S.user)v="auth";
  if(v==="home")home();else if(v==="auth")auth();else if(v==="players")players();else if(v==="chat")chat();else profile()
@@ -148,7 +149,7 @@ function chat(){
  var last=0;
  $("#sf").onsubmit=async function(e){e.preventDefault();var t=$("#tx").value.trim();if(!t||Date.now()-last<800)return;
   if(!mine()){toast("Créez d’abord votre profil");setView("me");return}
-  last=Date.now();$("#tx").value="";var r=await sb.from("messages").insert({text:t.slice(0,500)});if(r.error)toast("Message refusé");else loadMsgs()};
+  last=Date.now();$("#tx").value="";var r=await sb.from("messages").insert({text:t.slice(0,500)});if(r.error){toast("Message non envoyé : "+r.error.message);$("#tx").value=t}else loadMsgs()};
  drawMsgs()
 }
 function drawMsgs(){var box=$("#ms");if(!box)return;var low=box.scrollHeight-box.scrollTop-box.clientHeight<80;
@@ -156,7 +157,7 @@ function drawMsgs(){var box=$("#ms");if(!box)return;var low=box.scrollHeight-box
  if(low||!box.dataset.s){box.scrollTop=box.scrollHeight;box.dataset.s=1}}
 
 async function loadPlayers(){var r=await sb.from("profiles").select("*");S.players=r.data||[];if(S.view==="players"||S.view==="home")draw()}
-async function loadMsgs(){var r=await sb.from("messages").select("id,user_id,text,created_at,profiles(pseudo)").order("created_at",{ascending:false}).limit(100);S.msgs=(r.data||[]).reverse();drawMsgs()}
+async function loadMsgs(){var r=await sb.from("messages").select("id,user_id,text,created_at,profiles(pseudo)").order("created_at",{ascending:false}).limit(100);if(r.error){toast("Chargement des messages impossible : "+r.error.message);return}S.msgs=(r.data||[]).reverse();drawMsgs()}
 function subscribe(){
  sb.removeAllChannels();
  S.ch=sb.channel("live").on("postgres_changes",{event:"*",schema:"public",table:"messages"},loadMsgs).on("postgres_changes",{event:"*",schema:"public",table:"profiles"},loadPlayers).subscribe()
@@ -169,7 +170,9 @@ async function onUser(u){
 }
 draw();
 if(configured){
- sb.auth.onAuthStateChange(function(_e,s){setTimeout(function(){onUser(s?s.user:null)},0)});
+ sb.auth.onAuthStateChange(function(_e,s){var u=s?s.user:null;
+  if((u&&S.user&&u.id===S.user.id)||(!u&&!S.user&&S.ready)){S.user=u;return}
+  S.ready=true;setTimeout(function(){onUser(u)},0)});
 }
 })();
 </script>
