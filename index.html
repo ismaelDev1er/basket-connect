@@ -164,7 +164,7 @@ function subscribe(){
 }
 async function onUser(u){
  S.user=u;
- if(u){await loadPlayers();await loadMsgs();subscribe();if(S.view==="auth")S.view=mine()?"players":"me"}
+ if(u){await loadPlayers();await loadMsgs();subscribe();if(!S.poll){S.poll=setInterval(function(){if(S.user&&S.view==="chat"&&!document.hidden)loadMsgs()},4000);document.addEventListener("visibilitychange",function(){if(S.user&&!document.hidden){loadMsgs();loadPlayers()}})}if(S.view==="auth")S.view=mine()?"players":"me"}
  else{sb.removeAllChannels();S.players=[];S.msgs=[];S.view="home"}
  draw()
 }
